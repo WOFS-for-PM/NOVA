@@ -1,1 +1,0 @@
-cmd_/home/deadpool/HUNTER-REPO/nova/nova.ko := ld -r -m elf_x86_64  -z max-page-size=0x200000 -T ./scripts/module-common.lds  --build-id  -o /home/deadpool/HUNTER-REPO/nova/nova.ko /home/deadpool/HUNTER-REPO/nova/nova.o /home/deadpool/HUNTER-REPO/nova/nova.mod.o ;  true
