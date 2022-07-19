@@ -10,5 +10,8 @@ nova-y := balloc.o bbuild.o checksum.o dax.o dir.o file.o gc.o inode.o ioctl.o \
 all:
 	$(MAKE) -C /lib/modules/$(shell uname -r)/build M=`pwd`
 
+trace:
+	make EXTRA_CFLAGS=-DTRACER_ENABLE -C /lib/modules/$(shell uname -r)/build M=`pwd`
+
 clean:
 	$(MAKE) -C /lib/modules/$(shell uname -r)/build M=`pwd` clean

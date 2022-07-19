@@ -643,6 +643,7 @@ static ssize_t do_nova_cow_file_write(struct file *filp,
 	long status = 0;
 	INIT_TIMING(cow_write_time);
 	INIT_TIMING(memcpy_time);
+	INIT_TIMING(t);
 	unsigned long step = 0;
 	ssize_t ret;
 	u64 begin_tail = 0;
@@ -756,6 +757,7 @@ static ssize_t do_nova_cow_file_write(struct file *filp,
 		}
 		/* Now copy from user buf */
 		//		nova_dbg("Write: %p\n", kmem);
+		NOVA_START_TIMING(write_data_t, t);
 		NOVA_START_TIMING(memcpy_w_nvmm_t, memcpy_time);
 		nova_memunlock_range(sb, kmem + offset, bytes, &irq_flags);
 		copied = bytes - memcpy_to_pmem_nocache(kmem + offset,
@@ -769,6 +771,9 @@ static ssize_t do_nova_cow_file_write(struct file *filp,
 
 		nova_memlock_range(sb, kmem + offset, bytes, &irq_flags);
 		NOVA_END_TIMING(memcpy_w_nvmm_t, memcpy_time);
+		NOVA_END_TIMING(write_data_t, t);
+
+		trace_nvm_access(NVM_WRITE, "Write Data", NOVA_SB(sb)->virt_addr, kmem + offset, copied);
 
 		if (data_csum > 0 || data_parity > 0) {
 			ret = nova_protect_file_data(sb, inode, pos, bytes,
@@ -785,7 +790,7 @@ static ssize_t do_nova_cow_file_write(struct file *filp,
 		nova_init_file_write_entry(sb, sih, &entry_data, epoch_id,
 					start_blk, allocated, blocknr, time,
 					file_size);
-
+		
 		ret = nova_append_file_write_entry(sb, pi, inode,
 					&entry_data, &update);
 		if (ret) {

@@ -458,10 +458,15 @@ int nova_check_inode_integrity(struct super_block *sb, u64 ino, u64 pi_addr,
 	struct nova_inode *pi, *alter_pi, alter_copy, *alter_pic;
 	int inode_bad, alter_bad;
 	int ret;
+	INIT_TIMING(t);
 
 	pi = (struct nova_inode *)nova_get_block(sb, pi_addr);
 
+	NOVA_START_TIMING(read_pi_t, t);
 	ret = memcpy_mcsafe(pic, pi, sizeof(struct nova_inode));
+	NOVA_END_TIMING(read_pi_t, t);
+
+	trace_nvm_access(NVM_READ, "Read Inode into DRAM", NOVA_SB(sb)->virt_addr, pi, sizeof(struct nova_inode));
 
 	if (metadata_csum == 0)
 		return ret;

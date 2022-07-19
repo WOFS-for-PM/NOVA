@@ -163,6 +163,17 @@ enum timing_category {
 	append_snapshot_file_t,
 	append_snapshot_inode_t,
 
+	/* Metadata access */
+	metadata_title_t,
+	read_pi_t,
+	write_pi_log_tail_t,
+	write_entry_t,
+	write_pi_t,
+
+	/* Data access */
+	data_title_t,
+	write_data_t,
+
 	/* Sentinel */
 	TIMING_NUM,
 };

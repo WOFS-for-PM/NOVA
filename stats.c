@@ -159,6 +159,17 @@ const char *Timingstring[TIMING_NUM] = {
 	"delete_snapshot",
 	"append_snapshot_filedata",
 	"append_snapshot_inode",
+
+	/* Metadata Operations */
+	"=================== Metadata Operations ===================",
+	"read_inode_for_integrity",
+	"write_pi_log_tail",
+	"write_entry",
+	"flush_pi",
+
+	/* Data access */
+	"=================== Data Operations ===================",
+	"write_data"
 };
 
 u64 Timingstats[TIMING_NUM];

@@ -892,8 +892,10 @@ int nova_append_file_write_entry(struct super_block *sb, struct nova_inode *pi,
 	struct nova_inode_info_header *sih = &si->header;
 	struct nova_log_entry_info entry_info;
 	INIT_TIMING(append_time);
+	INIT_TIMING(t);
 	int ret;
 
+	NOVA_START_TIMING(write_entry_t, t);
 	NOVA_START_TIMING(append_file_entry_t, append_time);
 
 	nova_update_entry_csum(data);
@@ -908,8 +910,11 @@ int nova_append_file_write_entry(struct super_block *sb, struct nova_inode *pi,
 	ret = nova_append_log_entry(sb, pi, inode, sih, &entry_info);
 	if (ret)
 		nova_err(sb, "%s failed\n", __func__);
-
+	
 	NOVA_END_TIMING(append_file_entry_t, append_time);
+	NOVA_END_TIMING(write_entry_t, t);
+
+	trace_nvm_access(NVM_WRITE, "Append Entry", 0, entry_info.update->curr_entry, entry_info.update->tail - entry_info.update->curr_entry);
 	return ret;
 }
 
