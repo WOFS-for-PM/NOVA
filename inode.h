@@ -210,17 +210,15 @@ static inline int nova_check_inode_checksum(struct nova_inode *pi)
 static inline void nova_update_tail(struct nova_inode *pi, u64 new_tail)
 {
 	INIT_TIMING(update_time);
-	INIT_TIMING(t);
 
 	NOVA_START_TIMING(update_tail_t, update_time);
-	NOVA_START_TIMING(write_pi_log_tail_t, t);
 
 	PERSISTENT_BARRIER();
 	pi->log_tail = new_tail;
 	nova_flush_buffer(&pi->log_tail, CACHELINE_SIZE, 1);
 
-	NOVA_END_TIMING(write_pi_log_tail_t, t);
 	NOVA_END_TIMING(update_tail_t, update_time);
+	NOVA_TIMING_ALIAS(write_pi_log_tail_t, update_tail_t);
 	
 }
 

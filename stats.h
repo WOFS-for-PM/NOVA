@@ -233,6 +233,10 @@ typedef struct timespec timing_t;
 #define NOVA_STATS_ADD(name, value) \
 	{__this_cpu_add(IOstats_percpu[name], value); }
 
+#define NOVA_TIMING_ALIAS(alias, name) \
+	{__this_cpu_write(Timingstats_percpu[alias], get_cpu_var(Timingstats_percpu)[name]); \
+	__this_cpu_write(Countstats_percpu[alias], get_cpu_var(Countstats_percpu)[name]); \
+	}
 
 
 #endif
