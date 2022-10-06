@@ -18,7 +18,7 @@ CLR_END="\033[0m"
 
 ORIGINAL=$PWD
 WORK_DIR=$(dirname "$0")
-MNT_POINT=/mnt/pmem1
+MNT_POINT=/mnt/pmem0
 
 # build project
 cd "$WORK_DIR" || exit
@@ -88,7 +88,7 @@ echo "Mounting..."
 # mount
 # mount -t NOVA -o init -o wprotect,data_cow /dev/pmem0 $MNT_POINT
 
-sudo mount -t NOVA -o "$init_str" -o dax /dev/pmem1 $MNT_POINT
+sudo mount -t NOVA -o "$init_str" -o dax /dev/pmem0 $MNT_POINT
 # sudo mount -t NOVA -o init -o wprotect -o dbgmask=16 /dev/pmem0 $MNT_POINT
 #mount -t NOVA -o init /dev/pmem0 $MNT_POINT
 echo "Mount with configs: "

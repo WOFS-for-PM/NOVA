@@ -721,7 +721,6 @@ static ssize_t do_nova_cow_file_write(struct file *filp,
 		offset = pos & (nova_inode_blk_size(sih) - 1);
 		start_blk = pos >> sb->s_blocksize_bits;
 
-		// TODO: Write Pattern in FS can be performed like this
 		if (WRITE_PATTERN == NOVA_WRITE_BLKS) {
 			allocated = BLKS_CNT;
 		}
