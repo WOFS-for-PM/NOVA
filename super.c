@@ -931,7 +931,6 @@ static void nova_put_super(struct super_block *sb)
 	int i;
 
 	nova_print_curr_epoch_id(sb);
-
 	/* It's unmount time, so unmap the nova memory */
 //	nova_print_free_lists(sb);
 	if (sbi->virt_addr) {
@@ -943,6 +942,7 @@ static void nova_put_super(struct super_block *sb)
 		sbi->virt_addr = NULL;
 	}
 
+	nova_print_timing_stats(sb);
 	nova_delete_free_lists(sb);
 
 	kfree(sbi->zeroed_page);

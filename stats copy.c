@@ -88,6 +88,8 @@ const char *Timingstring[TIMING_NUM] = {
 	"append_link_change",
 	"append_setattr",
 	"append_snapshot_info",
+	"append_entry_page",
+	"append_entry_page_out",
 	"inplace_update_entry",
 
 	/* Tree */
@@ -296,7 +298,6 @@ void nova_print_meta_stats(void) {
 	printk("test_memcpy_time: count ?, timing %llu, average ?", memcpy_time),
 	printk("=========== NOVA meta finish ===========\n");
 }
-
 
 void nova_print_timing_stats(struct super_block *sb)
 {
