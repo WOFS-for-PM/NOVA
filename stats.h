@@ -166,9 +166,24 @@ enum timing_category {
 	/* Metadata access */
 	metadata_title_t,
 	read_pi_t,
-	write_pi_log_tail_t,
-	write_entry_t,
 	write_pi_t,
+	zero_data_t,
+	read_page_tail_t,		
+	write_page_tail_t,
+
+	partial_write_t,
+	write_pi_log_ptr_t,
+	update_pi_tail_t,
+	invalid_pi_t,
+	read_entry_t,
+	write_entry_t,
+	
+	read_entry_trans_id_t,
+	read_entry_type_t,
+	read_entry_epoch_t,
+	invalid_entry_t,
+	write_journal_t,
+	update_journal_ptr_t,
 
 	/* Data access */
 	data_title_t,
@@ -199,7 +214,11 @@ enum stats_category {
 	dax_new_blocks,
 	inplace_new_blocks,
 	fdatasync,
-
+	meta_read,
+	meta_write,
+	extra_write,		// The number of additional bytes written for crash consistency
+	file_read,
+	file_write,
 	/* Sentinel */
 	STATS_NUM,
 };

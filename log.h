@@ -47,12 +47,17 @@ enum nova_entry_type {
 	NEXT_PAGE,
 };
 
+// finish
 static inline u8 nova_get_entry_type(void *p)
 {
 	u8 type;
 	int rc;
+	INIT_TIMING(t);
 
+	NOVA_START_TIMING(read_entry_type_t, t);
 	rc = memcpy_mcsafe(&type, p, sizeof(u8));
+	NOVA_END_TIMING(read_entry_type_t, t);
+	NOVA_STATS_ADD(meta_read, 1);
 	if (rc)
 		return rc;
 

@@ -218,7 +218,6 @@ static inline void nova_update_tail(struct nova_inode *pi, u64 new_tail)
 	nova_flush_buffer(&pi->log_tail, CACHELINE_SIZE, 1);
 
 	NOVA_END_TIMING(update_tail_t, update_time);
-	NOVA_TIMING_ALIAS(write_pi_log_tail_t, update_tail_t);
 	
 }
 
@@ -261,7 +260,7 @@ static inline void nova_update_inode(struct super_block *sb,
 	NOVA_START_TIMING(write_pi_t, t);
 	nova_update_inode_checksum(pi);
 	NOVA_END_TIMING(write_pi_t, t);
-	
+	NOVA_STATS_ADD(meta_write, sizeof(struct nova_inode));
 	trace_nvm_access(NVM_WRITE, "Flush Inode", NOVA_SB(sb)->virt_addr, pi, sizeof(struct nova_inode));
 
 	if (inode && update_alter)
@@ -359,9 +358,13 @@ static inline struct nova_inode *nova_get_inode(struct super_block *sb,
 	struct nova_inode fake_pi;
 	void *addr;
 	int rc;
+	INIT_TIMING(t);
 
 	addr = nova_get_block(sb, sih->pi_addr);
+	NOVA_START_TIMING(read_pi_t, t);
 	rc = memcpy_mcsafe(&fake_pi, addr, sizeof(struct nova_inode));
+	NOVA_END_TIMING(read_pi_t, t);
+	NOVA_STATS_ADD(meta_read, sizeof(struct nova_inode));
 	if (rc)
 		return NULL;
 

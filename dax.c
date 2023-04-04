@@ -32,9 +32,10 @@ static inline int nova_copy_partial_block(struct super_block *sb,
 	int rc = 0;
 	unsigned long nvmm;
 
+
 	nvmm = get_nvmm(sb, sih, entry, index);
 	ptr = nova_get_block(sb, (nvmm << PAGE_SHIFT));
-
+	
 	if (ptr != NULL) {
 		if (support_clwb)
 			rc = memcpy_mcsafe(kmem + offset, ptr + offset,
@@ -56,7 +57,9 @@ static inline int nova_handle_partial_block(struct super_block *sb,
 	struct nova_sb_info *sbi = NOVA_SB(sb);
 	struct nova_file_write_entry *entryc, entry_copy;
 	unsigned long irq_flags = 0;
+	INIT_TIMING(t);
 
+	NOVA_START_TIMING(partial_write_t, t);
 	nova_memunlock_block(sb, kmem, &irq_flags);
 	if (entry == NULL) {
 		/* Fill zero */
@@ -82,6 +85,8 @@ static inline int nova_handle_partial_block(struct super_block *sb,
 	nova_memlock_block(sb, kmem, &irq_flags);
 	if (support_clwb)
 		nova_flush_buffer(kmem + offset, length, 0);
+	NOVA_END_TIMING(partial_write_t, t);
+	NOVA_STATS_ADD(extra_write, length);
 	return 0;
 }
 
@@ -143,12 +148,15 @@ int nova_handle_head_tail_blocks(struct super_block *sb,
 	return ret;
 }
 
+// finish
 int nova_reassign_file_tree(struct super_block *sb,
 	struct nova_inode_info_header *sih, u64 begin_tail)
 {
 	void *addr;
 	struct nova_file_write_entry *entry;
 	struct nova_file_write_entry *entryc, entry_copy;
+	char copy[NOVA_MAX_ENTRY_LEN];
+	INIT_TIMING(t);
 	u64 curr_p = begin_tail;
 	size_t entry_size = sizeof(struct nova_file_write_entry);
 
@@ -180,6 +188,11 @@ int nova_reassign_file_tree(struct super_block *sb,
 			continue;
 		}
 #endif
+
+		NOVA_START_TIMING(read_entry_t, t);
+		memcpy_mcsafe(copy, entry, sizeof(struct nova_file_write_entry));
+		NOVA_END_TIMING(read_entry_t, t);
+		NOVA_STATS_ADD(meta_read, sizeof(struct nova_file_write_entry));
 
 		nova_assign_write_entry(sb, sih, entry, entryc, true);
 		curr_p += entry_size;

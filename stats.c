@@ -163,13 +163,30 @@ const char *Timingstring[TIMING_NUM] = {
 	/* Metadata Operations */
 	"=================== Metadata Operations ===================",
 	"read_inode_for_integrity",
-	"write_pi_log_tail",
-	"write_entry",
 	"flush_pi",
+	"zero_data",
+	"read_page_tail",
+	"write_page_tail",
+
+	"partial_write",
+	"write_pi_log_ptr",
+	"update_pi_tail"
+	"invalidate_pi",
+	"read_entry",
+	"write_entry",
+	
+	"read_entry_trans_id",
+	"read_entry_type",
+	"read_entry_epoch",
+	"invalid_entry",
+	"write_journal",
+	"update_journal_ptr",
 
 	/* Data access */
 	"=================== Data Operations ===================",
-	"write_data"
+	"write_data",
+	".",
+	".",
 };
 
 u64 Timingstats[TIMING_NUM];
@@ -282,19 +299,34 @@ void nova_get_IO_stats(void)
 	}
 }
 
-void nova_print_meta_stats(void) {
-	u64 cow_write_time =  Timingstats[do_cow_write_t] != 0 ? 
-		Timingstats[do_cow_write_t] : Timingstats[inplace_write_t];
+void nova_print_meta_stats(struct super_block *sb) {
+	unsigned long meta_time = 	Timingstats[read_pi_t] + Timingstats[write_pi_t]
+		+ Timingstats[read_page_tail_t] + Timingstats[write_page_tail_t]
+		+ Timingstats[write_pi_log_ptr_t] + Timingstats[update_pi_tail_t]
+		+ Timingstats[invalid_pi_t] + Timingstats[read_entry_t]
+		+ Timingstats[write_entry_t] + Timingstats[read_entry_trans_id_t]
+		+ Timingstats[read_entry_type_t] + Timingstats[read_entry_epoch_t]
+		+ Timingstats[invalid_entry_t] + Timingstats[write_journal_t]
+		+ Timingstats[update_journal_ptr_t];
+	unsigned long meta_times = 	Countstats[read_pi_t] + Countstats[write_pi_t]
+		+ Countstats[read_page_tail_t] + Countstats[write_page_tail_t]
+		+ Countstats[write_pi_log_ptr_t] + Countstats[update_pi_tail_t]
+		+ Countstats[invalid_pi_t] + Countstats[read_entry_t]
+		+ Countstats[write_entry_t] + Countstats[read_entry_trans_id_t]
+		+ Countstats[read_entry_type_t] + Countstats[read_entry_epoch_t]
+		+ Countstats[invalid_entry_t] + Countstats[write_journal_t]
+		+ Countstats[update_journal_ptr_t];
 
-	u64 meta_time = Timingstats[read_pi_t] + Timingstats[write_pi_log_tail_t] 
-		+ Timingstats[write_entry_t] + Timingstats[write_pi_t];
-	u64 memcpy_time = Timingstats[memcpy_w_nvmm_t];
-
-	printk("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n=========== NOVA meta stats ===========\n");
-	printk("test_cow_write_time: count ?, timing %llu, average ?", cow_write_time),
-	printk("test_meta_time: count ?, timing %llu, average ?", meta_time),
-	printk("test_memcpy_time: count ?, timing %llu, average ?", memcpy_time),
-	printk("=========== NOVA meta finish ===========\n");
+	pr_info("=========== NOVA meta_trace stats ============\n");
+	pr_info("meta_read: %llu\n", IOstats[meta_read]);
+	pr_info("meta_write: %llu\n", IOstats[meta_write]);
+	pr_info("data_read: %llu\n", IOstats[file_read]);
+	pr_info("data_write: %llu\n", IOstats[file_write]);
+	pr_info("meta_time: %llu\n", meta_time);
+	pr_info("meta_times: %llu", meta_times);
+	pr_info("data_write_time: %llu\n", Timingstats[memcpy_w_nvmm_t]);
+	pr_info("data_read_time: %llu\n", Timingstats[memcpy_r_nvmm_t]);
+	pr_info("COW_time: %llu\n", Timingstats[cow_write_t]);
 }
 
 
@@ -330,7 +362,7 @@ void nova_print_timing_stats(struct super_block *sb)
 	nova_info("\n");
 	nova_print_alloc_stats(sb);
 	nova_print_IO_stats(sb);
-	nova_print_meta_stats();
+	nova_print_meta_stats(sb);
 }
 
 static void nova_clear_timing_stats(void)

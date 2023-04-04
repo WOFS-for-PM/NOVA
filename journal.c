@@ -215,9 +215,11 @@ static u64 nova_append_entry_journal(struct super_block *sb,
 	struct nova_sb_info *sbi = NOVA_SB(sb);
 	u64 *aligned_field;
 	u64 addr;
+	INIT_TIMING(t);
 
 	entry = (struct nova_lite_journal_entry *)nova_get_block(sb,
 							curr_p);
+
 	entry->type = cpu_to_le64(JOURNAL_ENTRY);
 	entry->padding = 0;
 	/* Align to 8 bytes */
@@ -227,7 +229,7 @@ static u64 nova_append_entry_journal(struct super_block *sb,
 	entry->data1 = cpu_to_le64(addr);
 	entry->data2 = cpu_to_le64(*aligned_field);
 	nova_update_journal_entry_csum(sb, entry);
-
+	NOVA_STATS_ADD(meta_write, sizeof(struct nova_lite_journal_entry));
 	curr_p = next_lite_journal(curr_p);
 	return curr_p;
 }
@@ -315,6 +317,7 @@ u64 nova_create_inode_transaction(struct super_block *sb,
 {
 	struct journal_ptr_pair *pair;
 	u64 temp;
+	INIT_TIMING(t);
 
 	pair = nova_get_journal_pointers(sb, cpu);
 	if (pair->journal_head == 0 ||
@@ -323,6 +326,7 @@ u64 nova_create_inode_transaction(struct super_block *sb,
 
 	temp = pair->journal_head;
 
+	NOVA_START_TIMING(write_journal_t, t);
 	temp = nova_append_inode_journal(sb, temp, inode,
 					new_inode, invalidate, 0);
 
@@ -332,7 +336,8 @@ u64 nova_create_inode_transaction(struct super_block *sb,
 	nova_flush_journal_in_batch(sb, pair->journal_head, temp);
 	pair->journal_tail = temp;
 	nova_flush_buffer(&pair->journal_head, CACHELINE_SIZE, 1);
-
+	NOVA_END_TIMING(write_journal_t, t);
+	// STATS ADD 在nova_append_inode_journal函数内部
 	nova_dbgv("%s: head 0x%llx, tail 0x%llx\n",
 			__func__, pair->journal_head, pair->journal_tail);
 	return temp;
@@ -382,6 +387,7 @@ u64 nova_create_rename_transaction(struct super_block *sb,
 }
 
 /* For log entry inplace update */
+// finish
 u64 nova_create_logentry_transaction(struct super_block *sb,
 	void *entry, enum nova_entry_type type, int cpu)
 {
@@ -389,7 +395,7 @@ u64 nova_create_logentry_transaction(struct super_block *sb,
 	size_t size = 0;
 	int i, count;
 	u64 temp;
-
+	INIT_TIMING(t);
 	pair = nova_get_journal_pointers(sb, cpu);
 	if (pair->journal_head == 0 ||
 			pair->journal_head != pair->journal_tail)
@@ -400,30 +406,42 @@ u64 nova_create_logentry_transaction(struct super_block *sb,
 	temp = pair->journal_head;
 
 	count = size / 8;
+	
+	NOVA_START_TIMING(write_journal_t, t);
 	for (i = 0; i < count; i++) {
 		temp = nova_append_entry_journal(sb, temp,
 						(char *)entry + i * 8);
 	}
 	nova_flush_journal_in_batch(sb, pair->journal_head, temp);
+	NOVA_END_TIMING(write_journal_t, t);
+
+	NOVA_START_TIMING(update_journal_ptr_t, t);
 	pair->journal_tail = temp;
 	nova_flush_buffer(&pair->journal_head, CACHELINE_SIZE, 1);
-
+	NOVA_END_TIMING(update_journal_ptr_t, t);
+	NOVA_STATS_ADD(meta_write, 8);
+	
 	nova_dbgv("%s: head 0x%llx, tail 0x%llx\n",
 			__func__, pair->journal_head, pair->journal_tail);
 	return temp;
 }
 
 /* Commit the transactions by dropping the journal entries */
+// finish
 void nova_commit_lite_transaction(struct super_block *sb, u64 tail, int cpu)
 {
 	struct journal_ptr_pair *pair;
+	INIT_TIMING(t);
 
 	pair = nova_get_journal_pointers(sb, cpu);
 	if (pair->journal_tail != tail)
 		BUG();
 
 	pair->journal_head = tail;
+	NOVA_START_TIMING(update_journal_ptr_t, t);
 	nova_flush_buffer(&pair->journal_head, CACHELINE_SIZE, 1);
+	NOVA_END_TIMING(update_journal_ptr_t, t);
+	NOVA_STATS_ADD(meta_write, 1);
 }
 
 /**************************** Initialization ******************************/

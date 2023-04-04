@@ -160,8 +160,10 @@ static unsigned int nova_init_dentry(struct super_block *sb,
 	unsigned int length;
 	unsigned short de_len;
 	struct timespec64 now;
+	INIT_TIMING(entry_t);
+	INIT_TIMING(tail_t);
 
-
+	NOVA_START_TIMING(write_entry_t, entry_t);
 	de_len = NOVA_DIR_LOG_REC_LEN(1);
 	memset(de_entry, 0, de_len);
 	de_entry->entry_type = DIR_LOG;
@@ -197,10 +199,12 @@ static unsigned int nova_init_dentry(struct super_block *sb,
 	strncpy(de_entry->name, "..\0", 3);
 	nova_update_entry_csum(de_entry);
 	length += de_len;
+	nova_flush_buffer(start, length, 0);
+	NOVA_END_TIMING(write_entry_t, entry_t);
+	NOVA_STATS_ADD(meta_write, length);
 
 	nova_set_page_num_entries(sb, curr_page, 2, 1);
 
-	nova_flush_buffer(start, length, 0);
 	return length;
 }
 
@@ -208,6 +212,7 @@ static unsigned int nova_init_dentry(struct super_block *sb,
  *
  * TODO: why is epoch_id a parameter when we pass in the sb?
  */
+// finish
 int nova_append_dir_init_entries(struct super_block *sb,
 	struct nova_inode *pi, u64 self_ino, u64 parent_ino, u64 epoch_id)
 {
@@ -220,6 +225,7 @@ int nova_append_dir_init_entries(struct super_block *sb,
 	unsigned int length;
 	struct nova_dentry *de_entry;
 	unsigned long irq_flags = 0;
+	INIT_TIMING(t);
 
 	sih.ino = self_ino;
 	sih.i_blk_type = NOVA_DEFAULT_BLOCK_TYPE;
@@ -239,10 +245,14 @@ int nova_append_dir_init_entries(struct super_block *sb,
 
 	length = nova_init_dentry(sb, de_entry, self_ino, parent_ino, epoch_id);
 
+	NOVA_START_TIMING(update_pi_tail_t, t);
 	nova_update_tail(pi, new_block + length);
-
 	nova_flush_buffer(&(pi->log_head), CACHELINE_SIZE, 0);
+	NOVA_END_TIMING(update_pi_tail_t, t);
+	NOVA_STATS_ADD(meta_write, 8);
+
 	nova_memlock_inode(sb, pi, &irq_flags);
+
 
 	if (metadata_csum == 0)
 		return 0;
@@ -338,10 +348,12 @@ int nova_add_dentry(struct dentry *dentry, u64 ino, int inc_link,
 	return ret;
 }
 
+//finish
 static int nova_can_inplace_update_dentry(struct super_block *sb,
 	struct nova_dentry *dentry, u64 epoch_id)
 {
 	struct nova_dentry *dentryc, entry_copy;
+	INIT_TIMING(t);
 
 	if (metadata_csum == 0)
 		dentryc = dentry;
@@ -350,9 +362,14 @@ static int nova_can_inplace_update_dentry(struct super_block *sb,
 		if (!nova_verify_entry_csum(sb, dentry, dentryc))
 			return 0;
 	}
-
-	if (dentry && dentryc->epoch_id == epoch_id)
+	
+	NOVA_STATS_ADD(meta_read, 8);
+	NOVA_START_TIMING(read_entry_epoch_t, t);
+	if (dentry && dentryc->epoch_id == epoch_id) {
+		NOVA_END_TIMING(read_entry_epoch_t, t);
 		return 1;
+	}
+	NOVA_END_TIMING(read_entry_epoch_t, t);
 
 	return 0;
 }
@@ -378,6 +395,7 @@ static int nova_inplace_update_dentry(struct super_block *sb,
 /* removes a directory entry pointing to the inode. assumes the inode has
  * already been logged for consistency
  */
+// finish
 int nova_remove_dentry(struct dentry *dentry, int dec_link,
 	struct nova_inode_update *update, u64 epoch_id)
 {
@@ -462,6 +480,7 @@ int nova_invalidate_dentries(struct super_block *sb,
 	struct nova_dentry *delete_dentry;
 	u64 create_curr, delete_curr;
 	int ret;
+	u64 epoch;
 
 	create_dentry = update->create_dentry;
 	delete_dentry = update->delete_dentry;

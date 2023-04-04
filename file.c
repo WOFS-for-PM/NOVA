@@ -562,7 +562,6 @@ memcpy:
 		}
 skip_verify:
 		NOVA_START_TIMING(memcpy_r_nvmm_t, memcpy_time);
-
 		if (!zero)
 			left = __copy_to_user(buf + copied,
 						dax_mem + offset, nr);
@@ -570,6 +569,7 @@ skip_verify:
 			left = __clear_user(buf + copied, nr);
 
 		NOVA_END_TIMING(memcpy_r_nvmm_t, memcpy_time);
+		NOVA_STATS_ADD(file_read, nr);
 
 		if (left) {
 			nova_dbg("%s ERROR!: bytes %lu, left %lu\n",
@@ -673,6 +673,7 @@ static ssize_t do_nova_cow_file_write(struct file *filp,
 	/* nova_inode tail pointer will be updated and we make sure all other
 	 * inode fields are good before checksumming the whole structure
 	 */
+	/*　contain one meta read */
 	if (nova_check_inode_integrity(sb, sih->ino, sih->pi_addr,
 			sih->alter_pi_addr, &inode_copy, 0) < 0) {
 		ret = -EIO;
@@ -747,7 +748,8 @@ static ssize_t do_nova_cow_file_write(struct file *filp,
 
 		kmem = nova_get_block(inode->i_sb,
 			     nova_get_block_off(sb, blocknr, sih->i_blk_type));
-
+		
+		/* contain PM access */
 		if (offset || ((offset + bytes) & (PAGE_SIZE - 1)) != 0)  {
 			ret = nova_handle_head_tail_blocks(sb, inode, pos,
 							   bytes, kmem);
@@ -770,6 +772,7 @@ static ssize_t do_nova_cow_file_write(struct file *filp,
 		nova_memlock_range(sb, kmem + offset, bytes, &irq_flags);
 		NOVA_END_TIMING(memcpy_w_nvmm_t, memcpy_time);
 		NOVA_TIMING_ALIAS(write_data_t, memcpy_w_nvmm_t);
+		NOVA_STATS_ADD(file_write, copied);
 
 		trace_nvm_access(NVM_WRITE, "Write Data", NOVA_SB(sb)->virt_addr, kmem + offset, copied);
 
@@ -857,8 +860,9 @@ out:
 	NOVA_END_TIMING(do_cow_write_t, cow_write_time);
 	NOVA_STATS_ADD(cow_write_bytes, written);
 
-	if (try_inplace)
+	if (try_inplace) {
 		return do_nova_inplace_file_write(filp, buf, len, ppos);
+	}
 
 	return ret;
 }

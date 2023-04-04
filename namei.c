@@ -20,6 +20,7 @@
 #include "journal.h"
 #include "inode.h"
 
+// ignore
 static ino_t nova_inode_by_name(struct inode *dir, struct qstr *entry,
 				 struct nova_dentry **res_entry)
 {
@@ -77,6 +78,7 @@ static struct dentry *nova_lookup(struct inode *dir, struct dentry *dentry,
 	return d_splice_alias(inode, dentry);
 }
 
+// finish
 static void nova_lite_transaction_for_new_inode(struct super_block *sb,
 	struct nova_inode *pi, struct nova_inode *pidir, struct inode *inode,
 	struct inode *dir, struct nova_inode_update *update)
@@ -86,7 +88,8 @@ static void nova_lite_transaction_for_new_inode(struct super_block *sb,
 	u64 journal_tail;
 	unsigned long irq_flags = 0;
 	INIT_TIMING(trans_time);
-
+	INIT_TIMING(t);
+	
 	NOVA_START_TIMING(create_trans_t, trans_time);
 
 	cpu = nova_get_cpuid(sb);
@@ -100,6 +103,7 @@ static void nova_lite_transaction_for_new_inode(struct super_block *sb,
 	nova_update_inode(sb, dir, pidir, update, 0);
 
 	pi->valid = 1;
+
 	nova_update_inode_checksum(pi);
 	PERSISTENT_BARRIER();
 
@@ -297,6 +301,7 @@ out_fail:
 	goto out;
 }
 
+// finish
 static void nova_lite_transaction_for_time_and_link(struct super_block *sb,
 	struct nova_inode *pi, struct nova_inode *pidir, struct inode *inode,
 	struct inode *dir, struct nova_inode_update *update,
@@ -307,6 +312,7 @@ static void nova_lite_transaction_for_time_and_link(struct super_block *sb,
 	int cpu;
 	unsigned long irq_flags = 0;
 	INIT_TIMING(trans_time);
+	INIT_TIMING(t);
 
 	NOVA_START_TIMING(link_trans_t, trans_time);
 
@@ -318,11 +324,14 @@ static void nova_lite_transaction_for_time_and_link(struct super_block *sb,
 	// update this functions so the changes will be roll back on failure.
 	journal_tail = nova_create_inode_transaction(sb, inode, dir, cpu,
 						0, invalidate);
-
+	NOVA_START_TIMING(invalid_pi_t, t);
 	if (invalidate) {
 		pi->valid = 0;
 		pi->delete_epoch_id = epoch_id;
 	}
+	NOVA_END_TIMING(invalid_pi_t, t);
+	NOVA_STATS_ADD(meta_write, 9);
+
 	nova_update_inode(sb, inode, pi, update, 0);
 
 	nova_update_inode(sb, dir, pidir, update_dir, 0);
@@ -423,7 +432,6 @@ static int nova_unlink(struct inode *dir, struct dentry *dentry)
 	INIT_TIMING(unlink_time);
 
 	NOVA_START_TIMING(unlink_t, unlink_time);
-
 	pidir = nova_get_inode(sb, dir);
 	if (!pidir)
 		goto out;
@@ -590,7 +598,7 @@ static int nova_rmdir(struct inode *dir, struct dentry *dentry)
 	int err = -ENOTEMPTY;
 	u64 epoch_id;
 	INIT_TIMING(rmdir_time);
-
+	pr_info("%s: called\n", __func__);
 	NOVA_START_TIMING(rmdir_t, rmdir_time);
 	if (!inode)
 		return -ENOENT;

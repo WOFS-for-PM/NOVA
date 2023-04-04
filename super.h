@@ -181,7 +181,15 @@ static inline struct nova_sb_info *NOVA_SB(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
-
+static __always_inline bool nvm_access(struct super_block *sb, void* addr) \
+{
+    struct nova_sb_info *sbi = NOVA_SB(sb);    
+	if (addr >= (void*)sbi->virt_addr && addr <= (void *)sbi->virt_addr + sbi->initsize) {
+		pr_info("nvm_access\n");
+		return true;
+	}
+	return false;
+}
 
 static inline struct nova_super_block
 *nova_get_redund_super(struct super_block *sb)

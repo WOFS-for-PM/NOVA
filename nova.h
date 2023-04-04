@@ -387,8 +387,12 @@ static inline int nova_get_head_tail(struct super_block *sb,
 {
 	struct nova_inode fake_pi;
 	int rc;
+	INIT_TIMING(t);
 
+	NOVA_START_TIMING(read_pi_t, t);
 	rc = memcpy_mcsafe(&fake_pi, pi, sizeof(struct nova_inode));
+	NOVA_END_TIMING(read_pi_t, t);
+	NOVA_STATS_ADD(meta_read, sizeof(struct nova_inode));
 	if (rc)
 		return rc;
 
@@ -648,11 +652,18 @@ static inline u64 next_log_page(struct super_block *sb, u64 curr)
 	struct nova_inode_log_page *curr_page;
 	u64 next = 0;
 	int rc;
+	INIT_TIMING(read_page_tail_time);
 
 	curr = BLOCK_OFF(curr);
 	curr_page = (struct nova_inode_log_page *)nova_get_block(sb, curr);
+
+
+	NOVA_START_TIMING(read_page_tail_t, read_page_tail_time);
 	rc = memcpy_mcsafe(&next, &curr_page->page_tail.next_page,
 				sizeof(u64));
+	NOVA_END_TIMING(read_page_tail_t, read_page_tail_time);
+	NOVA_STATS_ADD(meta_read, sizeof(u64));
+
 	if (rc)
 		return rc;
 
@@ -737,10 +748,14 @@ static inline void nova_set_next_page_address(struct super_block *sb,
 static inline void nova_set_page_num_entries(struct super_block *sb,
 	struct nova_inode_log_page *curr_page, int num, int flush)
 {
+	INIT_TIMING(t);
+	NOVA_START_TIMING(write_page_tail_t, t);
 	curr_page->page_tail.num_entries = num;
 	if (flush)
 		nova_flush_buffer(&curr_page->page_tail,
 				sizeof(struct nova_inode_page_tail), 0);
+	NOVA_END_TIMING(write_page_tail_t, t);
+	NOVA_STATS_ADD(meta_write, sizeof(unsigned int));
 }
 
 static inline void nova_set_page_invalid_entries(struct super_block *sb,
@@ -756,6 +771,7 @@ static inline void nova_inc_page_num_entries(struct super_block *sb,
 	u64 curr)
 {
 	struct nova_inode_log_page *curr_page;
+	INIT_TIMING(write_page_tail_time);
 
 	curr = BLOCK_OFF(curr);
 	curr_page = (struct nova_inode_log_page *)nova_get_block(sb, curr);
@@ -763,6 +779,7 @@ static inline void nova_inc_page_num_entries(struct super_block *sb,
 	curr_page->page_tail.num_entries++;
 	nova_flush_buffer(&curr_page->page_tail,
 				sizeof(struct nova_inode_page_tail), 0);
+
 }
 
 u64 nova_print_log_entry(struct super_block *sb, u64 curr);
@@ -772,10 +789,12 @@ static inline void nova_inc_page_invalid_entries(struct super_block *sb,
 {
 	struct nova_inode_log_page *curr_page;
 	u64 old_curr = curr;
+	INIT_TIMING(write_page_tail_time);
 
 	curr = BLOCK_OFF(curr);
 	curr_page = (struct nova_inode_log_page *)nova_get_block(sb, curr);
 
+	NOVA_START_TIMING(write_page_tail_t, write_page_tail_time);
 	curr_page->page_tail.invalid_entries++;
 	if (curr_page->page_tail.invalid_entries >
 			curr_page->page_tail.num_entries) {
@@ -788,6 +807,8 @@ static inline void nova_inc_page_invalid_entries(struct super_block *sb,
 
 	nova_flush_buffer(&curr_page->page_tail,
 				sizeof(struct nova_inode_page_tail), 0);
+	NOVA_END_TIMING(write_page_tail_t, write_page_tail_time);
+	NOVA_STATS_ADD(meta_write, sizeof(struct nova_inode_page_tail));
 }
 
 static inline void nova_set_alter_page_address(struct super_block *sb,
@@ -827,13 +848,16 @@ static inline bool goto_next_page(struct super_block *sb, u64 curr_p)
 	void *addr;
 	u8 type;
 	int rc;
-
+	INIT_TIMING(t);
 	/* Each kind of entry takes at least 32 bytes */
 	if (ENTRY_LOC(curr_p) + 32 > LOG_BLOCK_TAIL)
 		return true;
 
+	NOVA_START_TIMING(read_page_tail_t, t);
 	addr = nova_get_block(sb, curr_p);
 	rc = memcpy_mcsafe(&type, addr, sizeof(u8));
+	NOVA_END_TIMING(read_page_tail_t, t);
+	NOVA_STATS_ADD(meta_read, 1);
 
 	if (rc < 0)
 		return true;

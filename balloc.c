@@ -878,6 +878,7 @@ static int nova_new_blocks(struct super_block *sb, unsigned long *blocknr,
 	int retried = 0;
 	unsigned long irq_flags = 0;
 	INIT_TIMING(alloc_time);
+	INIT_TIMING(zero_time);
 
 	num_blocks = num * nova_get_numblocks(btype);
 	if (num_blocks == 0) {
@@ -932,12 +933,15 @@ alloc:
 		return -ENOSPC;
 	}
 
+	/* nvm access: zero out data block */
 	if (zero) {
+		NOVA_START_TIMING(zero_data_t, zero_time);
 		bp = nova_get_block(sb, nova_get_block_off(sb,
 						new_blocknr, btype));
 		nova_memunlock_range(sb, bp, PAGE_SIZE * ret_blocks, &irq_flags);
 		memset_nt(bp, 0, PAGE_SIZE * ret_blocks);
 		nova_memlock_range(sb, bp, PAGE_SIZE * ret_blocks, &irq_flags);
+		NOVA_END_TIMING(zero_data_t, zero_time);
 	}
 	*blocknr = new_blocknr;
 

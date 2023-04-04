@@ -452,6 +452,7 @@ static int nova_repair_inode(struct super_block *sb, struct nova_inode *bad_pi,
  * alter inode if the major inode checks ok. If we are going to read or rebuild
  * the inode, also check the alter even if the major inode checks ok.
  */
+// finish
 int nova_check_inode_integrity(struct super_block *sb, u64 ino, u64 pi_addr,
 	u64 alter_pi_addr, struct nova_inode *pic, int check_replica)
 {
@@ -462,9 +463,12 @@ int nova_check_inode_integrity(struct super_block *sb, u64 ino, u64 pi_addr,
 
 	pi = (struct nova_inode *)nova_get_block(sb, pi_addr);
 
+	/* meta: read */
+	NOVA_STATS_ADD(meta_read, sizeof(struct nova_inode));
 	NOVA_START_TIMING(read_pi_t, t);
 	ret = memcpy_mcsafe(pic, pi, sizeof(struct nova_inode));
 	NOVA_END_TIMING(read_pi_t, t);
+	NOVA_STATS_ADD(meta_read, sizeof(struct nova_inode));
 
 	trace_nvm_access(NVM_READ, "Read Inode into DRAM", NOVA_SB(sb)->virt_addr, pi, sizeof(struct nova_inode));
 

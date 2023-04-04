@@ -1,1 +1,1 @@
-sudo fio -filename=/mnt/pmem0/file -fallocate=none -direct=0 -iodepth 1 -rw=write -ioengine=sync -bs=4k -size=1024M -name=test
+sudo fio -filename=/mnt/pmem0/file -fallocate=none -direct=0 -iodepth 1 -rw=write -ioengine=sync -bs=4k -size=2048M -name=test

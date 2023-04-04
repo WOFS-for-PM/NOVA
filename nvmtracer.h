@@ -15,6 +15,7 @@ enum nvm_access_type
     NVM_WRITE
 };
 
+
 #ifdef TRACER_ENABLE
 static __always_inline void trace_nvm_access(enum nvm_access_type access_type, const char * msg, uint64_t nvm_start, uint64_t addr, uint64_t len)
 {
@@ -34,6 +35,7 @@ static __always_inline void trace_nvm_access(enum nvm_access_type access_type, c
 {
     return;
 }
+
 #endif 
 
 

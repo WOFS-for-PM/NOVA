@@ -225,6 +225,7 @@ int nova_get_inode_address(struct super_block *sb, u64 ino, int version,
 		if (curr == 0) {
 			if (extendable == 0)
 				return -EINVAL;
+			// ignore
 
 			extended = 1;
 
@@ -294,7 +295,6 @@ int nova_delete_file_tree(struct super_block *sb,
 	INIT_TIMING(delete_time);
 
 	NOVA_START_TIMING(delete_file_tree_t, delete_time);
-
 	entryc = (metadata_csum == 0) ? entry : &entry_copy;
 
 	/* Handle EOF blocks */
@@ -492,9 +492,13 @@ static int nova_read_inode(struct super_block *sb, struct inode *inode,
 	struct nova_inode_info_header *sih = &si->header;
 	int ret = -EIO;
 	unsigned long ino;
+	INIT_TIMING(t);
 
+	NOVA_START_TIMING(read_pi_t, t);
 	ret = nova_get_reference(sb, pi_addr, &fake_pi,
 			(void **)&pi, sizeof(struct nova_inode));
+	NOVA_END_TIMING(read_pi_t, t);
+	NOVA_STATS_ADD(meta_read, sizeof(struct nova_inode));
 	if (ret) {
 		nova_dbg("%s: read pi @ 0x%llx failed\n",
 				__func__, pi_addr);
@@ -1013,6 +1017,7 @@ int nova_delete_dead_inode(struct super_block *sb, u64 ino)
 }
 
 /* Returns 0 on failure */
+// ignore
 u64 nova_new_nova_inode(struct super_block *sb, u64 *pi_addr)
 {
 	struct nova_sb_info *sbi = NOVA_SB(sb);
@@ -1052,6 +1057,7 @@ u64 nova_new_nova_inode(struct super_block *sb, u64 *pi_addr)
 	return ino;
 }
 
+// finish
 struct inode *nova_new_vfs_inode(enum nova_new_inode_type type,
 	struct inode *dir, u64 pi_addr, u64 ino, umode_t mode,
 	size_t size, dev_t rdev, const struct qstr *qstr, u64 epoch_id)
@@ -1068,7 +1074,7 @@ struct inode *nova_new_vfs_inode(enum nova_new_inode_type type,
 	u64 alter_pi_addr = 0;
 	unsigned long irq_flags = 0;
 	INIT_TIMING(new_inode_time);
-
+	INIT_TIMING(t);
 	NOVA_START_TIMING(new_vfs_inode_t, new_inode_time);
 	sb = dir->i_sb;
 	sbi = (struct nova_sb_info *)sb->s_fs_info;
@@ -1137,6 +1143,7 @@ struct inode *nova_new_vfs_inode(enum nova_new_inode_type type,
 	 * Pi is part of the dir log so no transaction is needed,
 	 * but we need to flush to NVMM.
 	 */
+	NOVA_START_TIMING(write_pi_t, t);
 	nova_memunlock_inode(sb, pi, &irq_flags);
 	pi->i_blk_type = NOVA_DEFAULT_BLOCK_TYPE;
 	pi->i_flags = nova_mask_flags(mode, diri->i_flags);
@@ -1152,6 +1159,9 @@ struct inode *nova_new_vfs_inode(enum nova_new_inode_type type,
 	}
 
 	nova_memlock_inode(sb, pi, &irq_flags);
+	nova_flush_buffer(pi, NOVA_INODE_SIZE, 0);
+	NOVA_END_TIMING(write_pi_t, t);
+	NOVA_STATS_ADD(meta_write, NOVA_INODE_SIZE);
 
 	si = NOVA_I(inode);
 	sih = &si->header;
@@ -1170,7 +1180,6 @@ struct inode *nova_new_vfs_inode(enum nova_new_inode_type type,
 		goto fail1;
 	}
 
-	nova_flush_buffer(pi, NOVA_INODE_SIZE, 0);
 	NOVA_END_TIMING(new_vfs_inode_t, new_inode_time);
 	return inode;
 fail1:

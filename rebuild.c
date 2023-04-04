@@ -19,6 +19,7 @@
 #include "inode.h"
 
 /* entry given to this function is a copy in dram */
+// no enter: ignore
 static void nova_apply_setattr_entry(struct super_block *sb,
 	struct nova_inode_rebuild *reb,	struct nova_inode_info_header *sih,
 	struct nova_setattr_logentry *entry)
@@ -53,11 +54,14 @@ static void nova_apply_setattr_entry(struct super_block *sb,
 }
 
 /* entry given to this function is a copy in dram */
+// ignore
 static void nova_apply_link_change_entry(struct super_block *sb,
 	struct nova_inode_rebuild *reb,	struct nova_link_change_entry *entry)
 {
 	if (entry->entry_type != LINK_CHANGE)
 		BUG();
+
+	pr_info("%s: called\n", __func__);
 
 	reb->i_links_count	= entry->links;
 	reb->i_ctime		= entry->ctime;
@@ -87,8 +91,12 @@ static int nova_init_inode_rebuild(struct super_block *sb,
 {
 	struct nova_inode fake_pi;
 	int rc;
+	INIT_TIMING(t);
 
+	NOVA_START_TIMING(read_pi_t, t);
 	rc = memcpy_mcsafe(&fake_pi, pi, sizeof(struct nova_inode));
+	NOVA_END_TIMING(read_pi_t, t);
+	NOVA_STATS_ADD(meta_read, sizeof(struct nova_inode));
 	if (rc)
 		return rc;
 
@@ -115,6 +123,7 @@ static inline void nova_rebuild_file_time_and_size(struct super_block *sb,
 	reb->i_size = cpu_to_le64(size);
 }
 
+// finish
 static int nova_rebuild_inode_start(struct super_block *sb,
 	struct nova_inode *pi, struct nova_inode_info_header *sih,
 	struct nova_inode_rebuild *reb, u64 pi_addr)
@@ -382,6 +391,7 @@ static void nova_rebuild_handle_write_entry(struct super_block *sb,
 	sih->i_size = le64_to_cpu(reb->i_size);
 }
 
+// finish
 static int nova_rebuild_file_inode_tree(struct super_block *sb,
 	struct nova_inode *pi, u64 pi_addr,
 	struct nova_inode_info_header *sih)
@@ -396,6 +406,7 @@ static int nova_rebuild_file_inode_tree(struct super_block *sb,
 	unsigned int data_bits = blk_type_to_shift[sih->i_blk_type];
 	u64 ino = pi->nova_ino;
 	INIT_TIMING(rebuild_time);
+	INIT_TIMING(t);
 	void *addr, *entryc;
 	u64 curr_p;
 	u8 type;
@@ -403,7 +414,6 @@ static int nova_rebuild_file_inode_tree(struct super_block *sb,
 
 	NOVA_START_TIMING(rebuild_file_t, rebuild_time);
 	nova_dbg_verbose("Rebuild file inode %llu tree\n", ino);
-
 	reb = &rebuild;
 	ret = nova_rebuild_inode_start(sb, pi, sih, reb, pi_addr);
 	if (ret)
@@ -413,6 +423,7 @@ static int nova_rebuild_file_inode_tree(struct super_block *sb,
 	// if (curr_p == 0 && sih->log_tail == 0)
 	// 	goto out;
 	if (curr_p == 0 || sih->log_tail == 0) {
+		// no enter, ignore
 		nova_warn("NULL log pointer(s) in file inode %llu\n", ino);
 		pi->log_head = 0;
 		pi->log_tail = 0;
@@ -438,11 +449,17 @@ static int nova_rebuild_file_inode_tree(struct super_block *sb,
 		addr = (void *)nova_get_block(sb, curr_p);
 
 		if (metadata_csum == 0)
-			entryc = addr;
+			entryc = entry_copy;
 		else if (!nova_verify_entry_csum(sb, addr, entryc))
 			return 0;
 
 		type = nova_get_entry_type(entryc);
+
+		//因为在trace中只会读到file_entry，所以这里直接读file_entry到entry_copy中
+		NOVA_START_TIMING(read_entry_t, t);
+		memcpy_mcsafe(entry_copy, addr, sizeof(struct nova_file_write_entry));
+		NOVA_END_TIMING(read_entry_t, t);
+		NOVA_STATS_ADD(meta_read, sizeof(struct nova_file_write_entry));
 
 		if (sbi->mount_snapshot) {
 			if (nova_encounter_mount_snapshot(sb, addr, type))
@@ -451,6 +468,7 @@ static int nova_rebuild_file_inode_tree(struct super_block *sb,
 
 		switch (type) {
 		case SET_ATTR:
+			// can be ignored
 			attr_entry = (struct nova_setattr_logentry *)entryc;
 			nova_apply_setattr_entry(sb, reb, sih, attr_entry);
 			sih->last_setattr = curr_p;
@@ -467,6 +485,7 @@ static int nova_rebuild_file_inode_tree(struct super_block *sb,
 			curr_p += sizeof(struct nova_setattr_logentry);
 			break;
 		case LINK_CHANGE:
+			// can be ignored
 			link_change_entry =
 				(struct nova_link_change_entry *)entryc;
 			nova_apply_link_change_entry(sb, reb,
@@ -481,6 +500,7 @@ static int nova_rebuild_file_inode_tree(struct super_block *sb,
 			curr_p += sizeof(struct nova_file_write_entry);
 			break;
 		case MMAP_WRITE:
+			// can be ignored
 			mmap_entry = (struct nova_mmap_entry *)addr;
 			nova_reset_mmap_csum_parity(sb, sih,
 					mmap_entry, MMENTRY(entryc));
@@ -519,6 +539,7 @@ static inline void nova_rebuild_dir_time_and_size(struct super_block *sb,
 	//reb->i_size = entryc->size;
 }
 
+// outer
 static void nova_reassign_last_dentry(struct super_block *sb,
 	struct nova_inode_info_header *sih, u64 curr_p)
 {
@@ -529,6 +550,7 @@ static void nova_reassign_last_dentry(struct super_block *sb,
 	} else {
 		old_dentry = (struct nova_dentry *)nova_get_block(sb,
 							sih->last_dentry);
+		
 		dentry = (struct nova_dentry *)nova_get_block(sb, curr_p);
 		if (dentry->trans_id >= old_dentry->trans_id)
 			sih->last_dentry = curr_p;
@@ -557,11 +579,19 @@ static inline int nova_replay_remove_dentry(struct super_block *sb,
 	return 0;
 }
 
+// finish
 static int nova_rebuild_handle_dentry(struct super_block *sb,
 	struct nova_inode_info_header *sih, struct nova_inode_rebuild *reb,
 	struct nova_dentry *entry, struct nova_dentry *entryc, u64 curr_p)
 {
 	int ret = 0;
+	char entry_copy[NOVA_MAX_ENTRY_LEN];
+	INIT_TIMING(t);
+	
+	NOVA_START_TIMING(read_entry_t, t);
+	memcpy_mcsafe(entry_copy, entry, le16_to_cpu(entry->de_len));
+	NOVA_END_TIMING(read_entry_t, t);
+	NOVA_STATS_ADD(meta_read, le16_to_cpu(entry->de_len));
 
 	nova_dbgv("curr_p: 0x%llx, type %d, ino %llu, name %s, namelen %u, csum 0x%x, rec len %u\n",
 			curr_p,
@@ -591,6 +621,7 @@ static int nova_rebuild_handle_dentry(struct super_block *sb,
 	return ret;
 }
 
+// finish
 int nova_rebuild_dir_inode_tree(struct super_block *sb,
 	struct nova_inode *pi, u64 pi_addr,
 	struct nova_inode_info_header *sih)
@@ -604,6 +635,7 @@ int nova_rebuild_dir_inode_tree(struct super_block *sb,
 	u64 ino = pi->nova_ino;
 	unsigned short de_len;
 	INIT_TIMING(rebuild_time);
+	INIT_TIMING(t);
 	void *addr, *entryc;
 	u64 curr_p;
 	u8 type;
@@ -651,14 +683,17 @@ int nova_rebuild_dir_inode_tree(struct super_block *sb,
 				break;
 		}
 
+
 		switch (type) {
 		case SET_ATTR:
+			pr_info("%s: ERROR reach SET_ATTR\n");
 			attr_entry = (struct nova_setattr_logentry *)entryc;
 			nova_apply_setattr_entry(sb, reb, sih, attr_entry);
 			sih->last_setattr = curr_p;
 			curr_p += sizeof(struct nova_setattr_logentry);
 			break;
 		case LINK_CHANGE:
+			pr_info("%s: ERROR reach LINK_CHANGE\n");
 			lc_entry = (struct nova_link_change_entry *)entryc;
 			if (lc_entry->trans_id >= reb->trans_id) {
 				nova_apply_link_change_entry(sb, reb, lc_entry);
@@ -722,10 +757,10 @@ int nova_rebuild_inode(struct super_block *sb, struct nova_inode_info *si,
 	pi = (struct nova_inode *)nova_get_block(sb, pi_addr);
 	// We need this valid in case we need to evict the inode.
 
-	nova_init_header(sb, sih, __le16_to_cpu(pi->i_mode));
+	nova_init_header(sb, sih, __le16_to_cpu(pi->i_mode));		// cached
 	sih->pi_addr = pi_addr;
 
-	if (pi->deleted == 1) {
+	if (pi->deleted == 1) {									    // cached
 		nova_dbg("%s: inode %llu has been deleted.\n", __func__, ino);
 		return -ESTALE;
 	}
