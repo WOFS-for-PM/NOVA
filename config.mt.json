@@ -11,6 +11,6 @@
         "init":	1,
         "snapshot": 0,	  
         "data_cow": 1,	    
-        "wprotect":	1  
+        "wprotect":	0  
     }
 }

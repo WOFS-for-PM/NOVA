@@ -162,19 +162,15 @@ const char *Timingstring[TIMING_NUM] = {
 
 	/* Metadata Operations */
 	"=================== Metadata Operations ===================",
-	"read_inode_for_integrity",
-	"flush_pi",
-	"zero_data",
+	"read_pi",
+	"write_pi",
 	"read_page_tail",
 	"write_page_tail",
-
-	"partial_write",
 	"write_pi_log_ptr",
-	"update_pi_tail"
+	"update_pi_tail",
 	"invalidate_pi",
 	"read_entry",
 	"write_entry",
-	
 	"read_entry_trans_id",
 	"read_entry_type",
 	"read_entry_epoch",
@@ -184,9 +180,10 @@ const char *Timingstring[TIMING_NUM] = {
 
 	/* Data access */
 	"=================== Data Operations ===================",
+	"zero_data",
+	"partial_write",
 	"write_data",
-	".",
-	".",
+	"umount",
 };
 
 u64 Timingstats[TIMING_NUM];
@@ -326,7 +323,7 @@ void nova_print_meta_stats(struct super_block *sb) {
 	pr_info("meta_times: %llu", meta_times);
 	pr_info("data_write_time: %llu\n", Timingstats[memcpy_w_nvmm_t]);
 	pr_info("data_read_time: %llu\n", Timingstats[memcpy_r_nvmm_t]);
-	pr_info("COW_time: %llu\n", Timingstats[cow_write_t]);
+	pr_info("COW_time: %llu\n", Timingstats[cow_write_t] ? Timingstats[cow_write_t] : Timingstats[inplace_write_t]);
 }
 
 

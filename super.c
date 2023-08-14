@@ -597,6 +597,7 @@ static int nova_fill_super(struct super_block *sb, void *data, int silent)
 	u32 random = 0;
 	int retval = -EINVAL;
 	int i;
+	int *bug;
 	INIT_TIMING(mount_time);
 
 	NOVA_START_TIMING(mount_t, mount_time);
@@ -612,9 +613,11 @@ static int nova_fill_super(struct super_block *sb, void *data, int silent)
 	BUILD_BUG_ON(sizeof(struct nova_inode_page_tail) +
 		     LOG_BLOCK_TAIL != PAGE_SIZE);
 
+	
 	sbi = kzalloc(sizeof(struct nova_sb_info), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
+		
 	sbi->nova_sb = kzalloc(sizeof(struct nova_super_block), GFP_KERNEL);
 	if (!sbi->nova_sb) {
 		kfree(sbi);
@@ -928,19 +931,22 @@ static void nova_put_super(struct super_block *sb)
 {
 	struct nova_sb_info *sbi = NOVA_SB(sb);
 	struct inode_map *inode_map;
+	INIT_TIMING(t);
 	int i;
 
+	NOVA_START_TIMING(umount_t, t);
 	nova_print_curr_epoch_id(sb);
 	/* It's unmount time, so unmap the nova memory */
 //	nova_print_free_lists(sb);
 	if (sbi->virt_addr) {
 		nova_save_snapshots(sb);
 		kmem_cache_free(nova_inode_cachep, sbi->snapshot_si);
-		nova_save_inode_list_to_log(sb);
-		/* Save everything before blocknode mapping! */
-		nova_save_blocknode_mappings_to_log(sb);
+		// nova_save_inode_list_to_log(sb);
+		// /* Save everything before blocknode mapping! */
+		// nova_save_blocknode_mappings_to_log(sb);
 		sbi->virt_addr = NULL;
 	}
+	NOVA_END_TIMING(umount_t, t);
 
 	nova_print_timing_stats(sb);
 	nova_delete_free_lists(sb);

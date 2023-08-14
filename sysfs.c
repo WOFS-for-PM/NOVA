@@ -504,6 +504,8 @@ void nova_sysfs_init(struct super_block *sb)
 		sbi->s_proc = proc_mkdir(sbi->s_bdev->bd_disk->disk_name,
 					 nova_proc_root);
 
+	printk("nova sysfs init at %s\n", sbi->s_bdev->bd_disk->disk_name);
+
 	if (sbi->s_proc) {
 		proc_create_data("timing_stats", 0444, sbi->s_proc,
 				 &nova_seq_timing_fops, sb);

@@ -783,7 +783,6 @@ struct inode *nova_iget(struct super_block *sb, unsigned long ino)
 	si = NOVA_I(inode);
 
 	nova_dbgv("%s: inode %lu\n", __func__, ino);
-
 	err = nova_get_inode_address(sb, ino, 0, &pi_addr, 0, 0);
 	if (err) {
 		nova_dbg("%s: get inode %lu address failed %d\n",
@@ -798,6 +797,7 @@ struct inode *nova_iget(struct super_block *sb, unsigned long ino)
 		goto fail;
 	}
 
+	pr_info("reabuild\n");
 	err = nova_rebuild_inode(sb, si, ino, pi_addr, 1);
 	if (err) {
 		nova_dbg("%s: failed to rebuild inode %lu\n", __func__, ino);
@@ -925,7 +925,7 @@ void nova_evict_inode(struct inode *inode)
 		NOVA_ASSERT(0);
 		goto out;
 	}
-
+		
 	// pi can be NULL if the file has already been deleted, but a handle
 	// remains.
 	if (pi && pi->nova_ino != inode->i_ino) {
