@@ -758,19 +758,12 @@ static ssize_t do_nova_cow_file_write(struct file *filp,
 		}
 		/* Now copy from user buf */
 		//		nova_dbg("Write: %p\n", kmem);
-		NOVA_START_TIMING(memcpy_w_nvmm_t, memcpy_time);
 		nova_memunlock_range(sb, kmem + offset, bytes, &irq_flags);
+		NOVA_START_TIMING(memcpy_w_nvmm_t, memcpy_time);
 		copied = bytes - memcpy_to_pmem_nocache(kmem + offset,
 						buf, bytes);
-						
-		//! This could be slower
-		// for (i = 0; i < 2; i++) {
-		// 	memcpy_to_pmem_nocache(kmem + offset + (i * len / 2), buf + (i * len / 2), len / 2);
-		// }
-		// copied = bytes;
-
-		nova_memlock_range(sb, kmem + offset, bytes, &irq_flags);
 		NOVA_END_TIMING(memcpy_w_nvmm_t, memcpy_time);
+		nova_memlock_range(sb, kmem + offset, bytes, &irq_flags);
 		NOVA_TIMING_ALIAS(write_data_t, memcpy_w_nvmm_t);
 		NOVA_STATS_ADD(file_write, copied);
 

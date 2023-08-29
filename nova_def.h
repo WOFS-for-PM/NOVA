@@ -103,6 +103,12 @@ static inline void PERSISTENT_MARK(void)
 	/* TODO: Fix me. */
 }
 
+static inline void PERSISTENT_BARRIER2(void)
+{
+	asm volatile ("mfence\n" : : );
+}
+
+
 static inline void PERSISTENT_BARRIER(void)
 {
 	asm volatile ("sfence\n" : : );

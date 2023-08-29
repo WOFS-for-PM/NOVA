@@ -464,7 +464,6 @@ int nova_check_inode_integrity(struct super_block *sb, u64 ino, u64 pi_addr,
 	pi = (struct nova_inode *)nova_get_block(sb, pi_addr);
 
 	/* meta: read */
-	NOVA_STATS_ADD(meta_read, sizeof(struct nova_inode));
 	NOVA_START_TIMING(read_pi_t, t);
 	ret = memcpy_mcsafe(pic, pi, sizeof(struct nova_inode));
 	NOVA_END_TIMING(read_pi_t, t);
