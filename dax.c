@@ -189,10 +189,10 @@ int nova_reassign_file_tree(struct super_block *sb,
 		}
 #endif
 
-		NOVA_START_TIMING(read_entry_t, t);
+		// NOVA_START_TIMING(read_entry_t, t);
 		memcpy_mcsafe(copy, entry, sizeof(struct nova_file_write_entry));
-		NOVA_END_TIMING(read_entry_t, t);
-		NOVA_STATS_ADD(meta_read, sizeof(struct nova_file_write_entry));
+		// NOVA_END_TIMING(read_entry_t, t);
+		// NOVA_STATS_ADD(meta_read, sizeof(struct nova_file_write_entry));
 
 		nova_assign_write_entry(sb, sih, entry, entryc, true);
 		curr_p += entry_size;

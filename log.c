@@ -838,8 +838,10 @@ int nova_assign_write_entry(struct super_block *sb,
 	unsigned long curr_pgoff;
 	int i;
 	int ret = 0;
-	INIT_TIMING(assign_time);
+	
+	NOVA_STATS_ADD(meta_read, 12);
 
+	INIT_TIMING(assign_time);
 	NOVA_START_TIMING(assign_t, assign_time);
 	for (i = 0; i < num; i++) {
 		curr_pgoff = start_pgoff + i;
