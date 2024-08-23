@@ -381,6 +381,8 @@ extern void nova_set_inode_flags(struct inode *inode, struct nova_inode *pi,
 	unsigned int flags);
 extern unsigned long nova_find_region(struct inode *inode, loff_t *offset,
 		int hole);
+void nova_truncate_file_blocks(struct inode *inode, loff_t start,
+				    loff_t end, u64 epoch_id);
 int nova_delete_file_tree(struct super_block *sb,
 	struct nova_inode_info_header *sih, unsigned long start_blocknr,
 	unsigned long last_blocknr, bool delete_nvmm,
