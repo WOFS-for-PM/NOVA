@@ -975,23 +975,27 @@ static void nova_put_super(struct super_block *sb)
 void nova_free_range_node(struct nova_range_node *node)
 {
 	kmem_cache_free(nova_range_node_cachep, node);
+	NOVA_STATS_ADD(mem_usage, -sizeof(*node));
 }
 
 
 void nova_free_inode_node(struct nova_range_node *node)
 {
 	nova_free_range_node(node);
+	NOVA_STATS_ADD(mem_usage, -sizeof(struct nova_range_node));
 }
 
 void nova_free_dir_node(struct nova_range_node *node)
 {
 	nova_free_range_node(node);
+	NOVA_STATS_ADD(mem_usage, -sizeof(struct nova_range_node));
 }
 
 void nova_free_vma_item(struct super_block *sb,
 	struct vma_item *item)
 {
 	nova_free_range_node((struct nova_range_node *)item);
+	NOVA_STATS_ADD(mem_usage, -sizeof(struct nova_range_node));
 }
 
 struct snapshot_info *nova_alloc_snapshot_info(struct super_block *sb)
@@ -1000,12 +1004,14 @@ struct snapshot_info *nova_alloc_snapshot_info(struct super_block *sb)
 
 	p = (struct snapshot_info *)
 		kmem_cache_alloc(nova_snapshot_info_cachep, GFP_NOFS);
+	NOVA_STATS_ADD(mem_usage, sizeof(*p));
 	return p;
 }
 
 void nova_free_snapshot_info(struct snapshot_info *info)
 {
 	kmem_cache_free(nova_snapshot_info_cachep, info);
+	NOVA_STATS_ADD(mem_usage, -sizeof(*info));
 }
 
 struct nova_range_node *nova_alloc_range_node_atomic(struct super_block *sb)
@@ -1014,6 +1020,7 @@ struct nova_range_node *nova_alloc_range_node_atomic(struct super_block *sb)
 
 	p = (struct nova_range_node *)
 		kmem_cache_zalloc(nova_range_node_cachep, GFP_ATOMIC);
+	NOVA_STATS_ADD(mem_usage, sizeof(*p));
 	return p;
 }
 
@@ -1023,22 +1030,26 @@ struct nova_range_node *nova_alloc_range_node(struct super_block *sb)
 
 	p = (struct nova_range_node *)
 		kmem_cache_zalloc(nova_range_node_cachep, GFP_NOFS);
+	NOVA_STATS_ADD(mem_usage, sizeof(*p));
 	return p;
 }
 
 
 struct nova_range_node *nova_alloc_inode_node(struct super_block *sb)
 {
+	NOVA_STATS_ADD(mem_usage, sizeof(struct nova_range_node));
 	return nova_alloc_range_node(sb);
 }
 
 struct nova_range_node *nova_alloc_dir_node(struct super_block *sb)
 {
+	NOVA_STATS_ADD(mem_usage, sizeof(struct nova_range_node));
 	return nova_alloc_range_node(sb);
 }
 
 struct vma_item *nova_alloc_vma_item(struct super_block *sb)
 {
+	NOVA_STATS_ADD(mem_usage, sizeof(struct nova_range_node));
 	return (struct vma_item *)nova_alloc_range_node(sb);
 }
 
@@ -1052,6 +1063,7 @@ static struct inode *nova_alloc_inode(struct super_block *sb)
 		return NULL;
 
 	atomic64_set(&vi->vfs_inode.i_version, 1);
+	NOVA_STATS_ADD(mem_usage, sizeof(*vi));
 
 	return &vi->vfs_inode;
 }
@@ -1063,6 +1075,7 @@ static void nova_i_callback(struct rcu_head *head)
 
 	nova_dbg_verbose("%s: ino %lu\n", __func__, inode->i_ino);
 	kmem_cache_free(nova_inode_cachep, vi);
+	NOVA_STATS_ADD(mem_usage, -sizeof(*vi));
 }
 
 static void nova_destroy_inode(struct inode *inode)

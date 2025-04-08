@@ -54,6 +54,10 @@ static int nova_seq_timing_show(struct seq_file *seq, void *v)
 	}
 
 	seq_puts(seq, "\n");
+
+	
+    nova_get_IO_stats();
+    seq_printf(seq, "mem_usage: %llu\n", IOstats[mem_usage]);
 	return 0;
 }
 

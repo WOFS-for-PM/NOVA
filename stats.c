@@ -324,6 +324,8 @@ void nova_print_meta_stats(struct super_block *sb) {
 	pr_info("data_write_time: %llu\n", Timingstats[memcpy_w_nvmm_t]);
 	pr_info("data_read_time: %llu\n", Timingstats[memcpy_r_nvmm_t]);
 	pr_info("COW_time: %llu\n", Timingstats[cow_write_t] ? Timingstats[cow_write_t] : Timingstats[inplace_write_t]);
+
+	pr_info("mem_usage: %llu\n", IOstats[mem_usage]);
 }
 
 

@@ -218,6 +218,8 @@ enum stats_category {
 	extra_write,		// The number of additional bytes written for crash consistency
 	file_read,
 	file_write,
+
+	mem_usage,
 	/* Sentinel */
 	STATS_NUM,
 };
